@@ -1,0 +1,57 @@
+services:
+  inventory-service:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DB_HOST=inventory-db
+      - DB_PORT=3306
+      - DB_NAME=inventory_db
+      - DB_USER=root
+      - DB_PASSWORD=toor
+      - NODE_ENV=production
+      - RESERVATION_TTL_MINUTES=15
+      - CATALOG_SERVICE_URL=http://catalog-service:8080
+    depends_on:
+      inventory-db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  inventory-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: inventory_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - inventory_db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  inventory_db_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge
